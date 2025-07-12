@@ -125,6 +125,11 @@ services:
     networks:
       - seafile-net
     restart: "unless-stopped"
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost", "-u", "root", "--password=${SEAFILE_MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   memcached:
     image: memcached:1.6.18
@@ -138,7 +143,7 @@ services:
     image: seafileltd/seafile-mc:11.0-latest
     container_name: seafile
     ports:
-      - "${SEAFILE_PORT:-8585}:80"
+      - "${SEAFILE_PORT:-8585}:8585"
     #     - "443:443"  # If https is enabled, cancel the comment.
     volumes:
       - /mnt/hdd1/seafile/seafile-data:/shared # Required, specifies the path to Seafile data persistent store.
@@ -148,8 +153,10 @@ services:
       - TIME_ZONE=${TIMEZONE:-Etc/UTC}
       - SEAFILE_SERVER_LETSENCRYPT=${SEAFILE_HTTPS:-false}
     depends_on:
-      - db
-      - memcached
+      db:
+        condition: service_healthy
+      memcached:
+        condition: service_started
     networks:
       - seafile-net
     restart: "unless-stopped"
