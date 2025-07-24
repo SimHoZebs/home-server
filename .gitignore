@@ -1,0 +1,10 @@
+cache/
+models/
+config/
+.env
+.env.*
+/home-server/jellyfin/config
+/home-server/jellyfin/cache
+/mnt/hdd1/*
+/mnt/hdd1/seafile/*
+./ollama

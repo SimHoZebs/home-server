@@ -66,7 +66,7 @@ services:
       file: hwaccel.ml.yml
       service: cuda
     volumes:
-      - model-cache:/cache
+      - model-cache-restore:/cache
     env_file:
       - .env
     restart: always
@@ -89,7 +89,8 @@ services:
       POSTGRES_DB: ${DB_DATABASE_NAME}
       POSTGRES_INITDB_ARGS: "--data-checksums"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata-restore:/var/lib/postgresql/data
+      - /mnt/hdd1/media/backups:/backups
     healthcheck:
       test: pg_isready --dbname='${DB_DATABASE_NAME}' --username='${DB_USERNAME}' || exit 1; Chksum="$$(psql --dbname='${DB_DATABASE_NAME}' --username='${DB_USERNAME}' --tuples-only --no-align --command='SELECT COALESCE(SUM(checksum_failures), 0) FROM pg_stat_database')"; echo "checksum failure count is $$Chksum"; [ "$$Chksum" = '0' ] || exit 1
       interval: 5m
@@ -126,7 +127,17 @@ services:
       - seafile-net
     restart: "unless-stopped"
     healthcheck:
-      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost", "-u", "root", "--password=${SEAFILE_MYSQL_ROOT_PASSWORD}"]
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "root",
+          "--password=${SEAFILE_MYSQL_ROOT_PASSWORD}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -143,13 +154,16 @@ services:
     image: seafileltd/seafile-mc:11.0-latest
     container_name: seafile
     ports:
-      - "${SEAFILE_PORT:-8585}:8585"
+      - "${SEAFILE_PORT:-8585}:80"
     #     - "443:443"  # If https is enabled, cancel the comment.
     volumes:
       - /mnt/hdd1/seafile/seafile-data:/shared # Required, specifies the path to Seafile data persistent store.
     env_file: .env
     environment:
       - DB_HOST=db
+      - DB_USER=${SEAFILE_DB_USER:-seafile}
+      - DB_PASSWD=${SEAFILE_DB_PASSWORD:-seafile_password}
+      - DB_NAME=${SEAFILE_DB_NAME:-seafile}
       - TIME_ZONE=${TIMEZONE:-Etc/UTC}
       - SEAFILE_SERVER_LETSENCRYPT=${SEAFILE_HTTPS:-false}
     depends_on:
@@ -220,6 +234,6 @@ networks:
   seafile-net:
 
 volumes:
-  pgdata:
-  model-cache:
+  pgdata-restore:
+  model-cache-restore:
   umami-db-data:
