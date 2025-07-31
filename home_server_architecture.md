@@ -116,6 +116,16 @@ NGINX configurations handle routing for different services:
 - WebSocket support for notifications
 - Multiple service endpoints (Seahub, file HTTP, WebDAV)
 
+### Inter-Container File Sharing with Seafile FUSE
+To enable seamless access to files stored in Seafile from other applications, the system now utilizes a Seafile FUSE mount. This approach allows other containers to read the Seafile file repository as if it were a standard file system, without needing to go through the Seafile web API.
+
+Here's how it works:
+1.  The `seafile` service is configured with `privileged: true` and the `SYS_ADMIN` capability. This is necessary to allow the container to perform the FUSE mount.
+2.  The `seafile` container mounts the Seafile library to `/seafile-fuse` inside the container.
+3.  This FUSE mount point on the host (`/mnt/hdd1/seafile/seafile-fuse`) is then shared with other containers in read-only mode. For example, the `immich_server` has the volume mount `/mnt/hdd1/seafile/seafile-fuse:/seafile-external:ro`.
+
+This architecture allows applications like Immich to directly access and index files stored in Seafile, creating a more integrated and efficient system.
+
 ### Docker Containerized Services
 Docker is used to run all applications in isolated containers. Below is a summary; see the `compose.yaml` and service-specific `docker-compose.yml` files for full details.
 
@@ -123,8 +133,8 @@ Docker is used to run all applications in isolated containers. Below is a summar
 | Container Name | Mapped Port | Access | Notes |
 | :--- | :--- | :--- | :--- |
 | `umami` | 3000 | Public via NGINX | Running with PostgreSQL backend (db-umami) |
-| `immich_server` | 2283 | Public via NGINX | Multi-container stack: server, ML, Redis, PostgreSQL with vector support |
-| `seafile` | 8585 | Internal via Tailscale | Running with MariaDB backend and Memcached |
+| `immich_server` | 2283 | Public via NGINX | Multi-container stack: server, ML, Redis, PostgreSQL with vector support. Has read-only access to Seafile files via FUSE mount at `/seafile-external`. |
+| `seafile` | 8585 | Internal via Tailscale | Running with MariaDB backend and Memcached. Provides a FUSE mount of its file library for other containers. |
 | `jellyfin` | Host network | Public via NGINX | GPU-accelerated transcoding with NVIDIA runtime |
 | `ollama` | 11434 | Internal via Tailscale | GPU-accelerated with NVIDIA runtime |
 | `AppFlowy-Cloud` | 80, 443 | Public via own NGINX | Complex stack: API, auth (GoTrue), admin, web, MinIO, PostgreSQL |

@@ -46,6 +46,7 @@ services:
       # Do not edit the next line. If you want to change the media storage location on your system, edit the value of UPLOAD_LOCATION in the .env file
       - ${UPLOAD_LOCATION}:/usr/src/app/upload
       - /etc/localtime:/etc/localtime:ro
+      - /mnt/hdd1/seafile/seafile-fuse:/seafile-external:ro
     env_file:
       - .env
     ports:
@@ -158,6 +159,14 @@ services:
     #     - "443:443"  # If https is enabled, cancel the comment.
     volumes:
       - /mnt/hdd1/seafile/seafile-data:/shared # Required, specifies the path to Seafile data persistent store.
+      - type: bind
+        source: /mnt/hdd1/seafile/seafile-fuse
+        target: /seafile-fuse
+        bind:
+          propagation: rshared
+    privileged: true
+    cap_add:
+      - SYS_ADMIN
     env_file: .env
     environment:
       - DB_HOST=db
