@@ -239,6 +239,44 @@ services:
       timeout: 5s
       retries: 5
 
+  ##############################STREAMER##############################
+  streamer:
+    container_name: streamer
+    image: linuxserver/ffmpeg:latest
+    restart: always
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    ports:
+      - "${SRT_PORT:-9998}:9998/udp"
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
+    command: >
+      -thread_queue_size 512
+      -fflags +genpts+discardcorrupt
+      -flags +low_delay
+      -i "srt://0.0.0.0:9998?mode=listener&latency=${SRT_LATENCY:-3000}&rcvbuf=262144"
+      -map 0:v -map 0:a
+      -c:v copy -c:a copy
+      -f flv rtmp://a.rtmp.youtube.com/live2/${YOUTUBE_KEY}
+      -map 0:v -map 0:a
+      -c:v h264_nvenc -preset ${NVENC_PRESET:-p6} \
+                      -b:v ${TWITCH_BITRATE:-6000k} \
+                      -maxrate ${TWITCH_BITRATE:-6000k} \
+                      -bufsize ${TWITCH_BUFSIZE:-12000k} \
+                      -g ${TWITCH_GOP:-120} -keyint_min ${TWITCH_GOP:-120} \
+                      -pix_fmt yuv420p -bf 2
+      -c:a copy
+      -f flv rtmp://live.twitch.tv/app/${TWITCH_KEY}
+    volumes:
+      - /tmp:/tmp
+
 networks:
   seafile-net:
 
