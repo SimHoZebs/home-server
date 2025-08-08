@@ -1,10 +1,10 @@
-# Home Server Infrastructure Documentation
-This document provides a detailed overview of a home server setup, which is distributed across two primary machines: a main Debian server and a Raspberry Pi. The system leverages Docker for application containerization, NGINX as a reverse proxy, Tailscale for secure networking, and DuckDNS for dynamic domain name resolution.
+# Home Server Architecture
+Multi-node home server infrastructure distributed across debian-server (primary) and rbpi (Raspberry Pi). Uses Docker containerization, NGINX reverse proxy, Tailscale mesh networking, and DuckDNS dynamic DNS.
 
-**Note:** This document reflects the current state of the server infrastructure as analyzed from the repository and running containers. All services listed are actively running and have been validated through Docker container inspection.
+All services are currently operational and validated via container inspection.
 
-## High-Level Overview
-At its core, this setup provides a suite of self-hosted services, creating a personal cloud for media, photos, analytics, and more. It's designed for security, privacy, and remote accessibility.
+## Architecture Overview
+Self-hosted service stack providing media streaming, photo management, analytics, file sync, LLM inference, and home automation.
 
 ## System Architecture Diagram
 @startuml
@@ -66,40 +66,67 @@ note right of RPi
 end note
 
 @enduml
-## The Two Core Devices
-- **debian-server**: This is the primary workhorse, equipped with an NVIDIA GPU for hardware-accelerated tasks. It runs the more resource-intensive applications like the media server and photo management system.
-- **rbpi (Raspberry Pi)**: This is a low-power device dedicated to home automation, location tracking, and remote desktop services. *(Note: Configuration for this device is not present in this repository).*
+## Infrastructure Components
+- **debian-server**: Primary server with NVIDIA GPU for hardware acceleration
+- **rbpi**: Raspberry Pi for home automation and remote access services
 
-## What Services Are Running?
-Here's a quick look at the applications running on the platform:
+## Service Inventory
 
 | Service | Host Device | Public Address | Purpose |
 | :--- | :--- | :--- | :--- |
-| **Jellyfin** | `debian-server` | `simtyler.duckdns.org/jellyfin/` | GPU-accelerated personal media server. |
-| **Immich** | `debian-server` | `simpics.duckdns.org` | GPU-accelerated photo/video backup solution. |
-| **Umami** | `debian-server` | `sim-analytics.duckdns.org` | Private, open-source web analytics. *(Running and healthy)* |
-| **Seafile** | `debian-server` | (Internal Access) | File syncing and sharing platform. *(Running with MariaDB backend)* |
-| **Ollama** | `debian-server` | (Internal Access) | GPU-accelerated local large language models. |
-| **AppFlowy-Cloud** | `debian-server` | `appflowy.duckdns.org` | Backend for the AppFlowy application (auth, storage, collaboration). |
-| **Home Assistant**| `rbpi` | (Internal Access) | Smart home automation hub. |
-| **RustDesk** | `rbpi` | (Internal Access) | Self-hosted remote desktop solution. |
-| **OwnTracks** | `rbpi` | (Internal Access) | Private location tracking and logging service. |
+| **Jellyfin** | `debian-server` | `simtyler.duckdns.org/jellyfin/` | GPU-accelerated media server |
+| **Immich** | `debian-server` | `simpics.duckdns.org` | GPU-accelerated photo/video management |
+| **Umami** | `debian-server` | `sim-analytics.duckdns.org` | Web analytics platform |
+| **Seafile** | `debian-server` | (Internal Access) | File sync with MariaDB backend |
+| **Ollama** | `debian-server` | (Internal Access) | GPU-accelerated LLM inference |
+| **Streamer** | `debian-server` | (Internal Access) | GPU-accelerated SRT to RTMP relay |
+| **AppFlowy-Cloud** | `debian-server` | `appflowy.duckdns.org` | Collaboration platform backend |
+| **Home Assistant**| `rbpi` | (Internal Access) | Home automation hub |
+| **RustDesk** | `rbpi` | (Internal Access) | Remote desktop service |
+| **OwnTracks** | `rbpi` | (Internal Access) | Location tracking service |
 
-## How It All Connects
-- **Tailscale (Secure Network)**: All devices are connected to a private, encrypted network using Tailscale. This allows them to communicate securely, no matter where they are in the world.
-- **DuckDNS (Your Address on the Internet)**: Since a home internet IP address can change, DuckDNS provides free, memorable domain names that always point to the home network.
-- **NGINX (The Digital Doorman)**: NGINX acts as a reverse proxy. It receives all incoming traffic, checks which domain was requested, and securely forwards the traffic to the correct application container. The configuration appears to be managed both at a host-level and within specific service directories (e.g., `AppFlowy-Cloud`).
-- **Let's Encrypt (The Padlock)**: All public-facing communication is encrypted with SSL/TLS certificates managed automatically by Certbot.
+### Ollama LLM Service
+GPU-accelerated LLM inference service on debian-server (port 11434, internal access).
 
-## Low-Level Deep Dive
-This section breaks down the technical configuration of each component.
+#### Model Portfolio
+| Model | Size | Classification | Use Case |
+|-------|------|----------------|----------|
+| qwen3:1.7b | 1.4 GB | Speed | Low-latency inference |
+| phi4-mini | 2.5 GB | Speed | Quick interactions |
+| qwen3:4b | 2.6 GB | General | Balanced performance |
+| gemma3:4b | 3.3 GB | Multimodal | Text and vision processing |
+| qwen3:latest | 5.2 GB | Intelligence | Complex reasoning |
+| deepseek-r1:8b | 5.2 GB | Intelligence | Advanced problem-solving |
 
-### Networking Infrastructure
-#### Tailscale
-Tailscale creates a zero-config mesh VPN (a "tailnet") using the WireGuard protocol. This provides a flat, secure network that allows the `debian-server` and `rbpi` to communicate directly, as if they were on the same local network.
+**Model Selection Strategy:**
+- Speed models: Instant responses, real-time applications
+- General models: Balanced capability/performance for standard tasks  
+- Intelligence models: Complex reasoning where latency is acceptable
+- Multimodal: Handles both text and image processing
 
-#### NGINX Reverse Proxy
-NGINX configurations handle routing for different services:
+### Streaming Service
+GPU-accelerated SRT to RTMP relay service for live streaming to multiple platforms.
+
+**Configuration:**
+- **Input**: SRT stream on configurable UDP port with low latency buffering
+- **Outputs**: Simultaneous RTMP streams to YouTube and Twitch
+- **Hardware acceleration**: NVDEC for decoding, H.264 NVENC for encoding
+- **Audio processing**: AAC encoding at 48kHz
+
+## Network Architecture
+- **Tailscale**: WireGuard-based mesh VPN providing secure inter-device communication
+- **DuckDNS**: Dynamic DNS service for stable domain resolution to changing home IP
+- **NGINX**: Reverse proxy with SSL termination and traffic routing
+- **Let's Encrypt**: Automated SSL/TLS certificate management via Certbot
+
+## Technical Implementation
+
+### Network Infrastructure
+#### Tailscale Mesh Network
+WireGuard-based VPN creating secure communication between debian-server and rbpi.
+
+#### NGINX Configuration
+Multiple NGINX instances handle different routing requirements:
 
 **AppFlowy-Cloud Internal NGINX** (`AppFlowy-Cloud/nginx/nginx.conf`):
 - SSL termination with self-signed certificates
@@ -116,20 +143,13 @@ NGINX configurations handle routing for different services:
 - WebSocket support for notifications
 - Multiple service endpoints (Seahub, file HTTP, WebDAV)
 
-### Inter-Container File Sharing with Seafile FUSE
-To enable seamless access to files stored in Seafile from other applications, the system now utilizes a Seafile FUSE mount. This approach allows other containers to read the Seafile file repository as if it were a standard file system, without needing to go through the Seafile web API.
+### Seafile FUSE Integration
+Seafile service configured with privileged access and SYS_ADMIN capability for FUSE mounting. Library mounted to `/seafile-fuse` internally, shared read-only to other containers via `/mnt/hdd1/seafile/seafile-fuse:/seafile-external:ro`. Enables direct file access for services like Immich without API overhead.
 
-Here's how it works:
-1.  The `seafile` service is configured with `privileged: true` and the `SYS_ADMIN` capability. This is necessary to allow the container to perform the FUSE mount.
-2.  The `seafile` container mounts the Seafile library to `/seafile-fuse` inside the container.
-3.  This FUSE mount point on the host (`/mnt/hdd1/seafile/seafile-fuse`) is then shared with other containers in read-only mode. For example, the `immich_server` has the volume mount `/mnt/hdd1/seafile/seafile-fuse:/seafile-external:ro`.
+### Container Deployment
+All services containerized via Docker. Configuration details in `compose.yaml` and service-specific compose files.
 
-This architecture allows applications like Immich to directly access and index files stored in Seafile, creating a more integrated and efficient system.
-
-### Docker Containerized Services
-Docker is used to run all applications in isolated containers. Below is a summary; see the `compose.yaml` and service-specific `docker-compose.yml` files for full details.
-
-#### On `debian-server`
+#### debian-server Containers
 | Container Name | Mapped Port | Access | Notes |
 | :--- | :--- | :--- | :--- |
 | `umami` | 3000 | Public via NGINX | Running with PostgreSQL backend (db-umami) |
@@ -137,10 +157,11 @@ Docker is used to run all applications in isolated containers. Below is a summar
 | `seafile` | 8585 | Internal via Tailscale | Running with MariaDB backend and Memcached. Provides a FUSE mount of its file library for other containers. |
 | `jellyfin` | Host network | Public via NGINX | GPU-accelerated transcoding with NVIDIA runtime |
 | `ollama` | 11434 | Internal via Tailscale | GPU-accelerated with NVIDIA runtime |
+| `streamer` | SRT_PORT/udp | Internal | GPU-accelerated SRT to RTMP relay with NVIDIA runtime |
 | `AppFlowy-Cloud` | 80, 443 | Public via own NGINX | Complex stack: API, auth (GoTrue), admin, web, MinIO, PostgreSQL |
 
-#### On `rbpi`
-*(Note: The configuration for these services is not present in this repository and is listed for informational purposes.)*
+#### rbpi Containers
+*(Configuration not present in this repository)*
 
 | Container Name | Mapped Port(s) | Access |
 | :--- | :--- | :--- |
@@ -149,42 +170,27 @@ Docker is used to run all applications in isolated containers. Below is a summar
 | `otrecorder` | 8083 | Internal via Tailscale |
 | `hbbs` / `hbbr` | (host network) | Internal via Tailscale |
 
-## Current Infrastructure Status
-All services are currently **running and healthy** based on Docker container inspection:
-- **11 active containers** including core services and their dependencies
-- **GPU acceleration** properly configured for Jellyfin, Immich ML, and Ollama using NVIDIA runtime
-- **Database backends** operational: PostgreSQL (Immich, Umami, AppFlowy), MariaDB (Seafile)
-- **Caching layers** active: Redis (Immich), Memcached (Seafile)
-- **Health checks** passing for all critical services
+## Operational Status
+- **12 active containers** across all services
+- **GPU acceleration** operational (NVIDIA runtime)
+- **Database backends** running: PostgreSQL, MariaDB
+- **Caching layers** active: Redis, Memcached
+- **Health checks** passing
 
-## Future Work & Improvements
-This section lists planned fixes, enhancements, and other items for future consideration.
+## Implementation Notes
 
-### 1. Correct Fail2ban Implementation
-- **Issue**: The `fail2ban` service is currently configured on the `rbpi` to monitor Jellyfin logs. However, Jellyfin is running on the `debian-server`, so its logs are not accessible to the fail2ban instance on the Pi. This means the jail is non-functional and cannot block malicious IPs.
-- **Required Fix**:
-  - **Migrate Configuration**: Install `fail2ban` on the `debian-server`.
-  - **Recreate Jail**: Create the `jellyfin.local` jail file in `/etc/fail2ban/jail.d/` on the `debian-server`.
-  - **Update Log Path**: Modify the `logpath` in the jail to point to the correct location within the Docker volume on the `debian-server` (e.g., `/path/to/jellyfin/config/log/jellyfin*.log`).
-  - **Verify Action**: Ensure the `action` is correctly set to `iptables-allports[name=jellyfin, chain=DOCKER-USER]` to interact with Docker's firewall rules.
-  - **Decommission Old Jail**: Remove the `jellyfin.local` file from the `rbpi` to avoid confusion.
+### 1. Fail2ban Configuration Issue
+- **Current**: fail2ban on rbpi monitoring Jellyfin logs on debian-server (non-functional)
+- **Required**: Migrate fail2ban to debian-server, update jail configuration for correct log paths
 
-### 2. General Security Hardening
-- **Action**: Implement `fail2ban` jails for other exposed services, such as NGINX itself, to protect against common web attacks and brute-force attempts.
+### 2. Security Hardening Items
+- **Default passwords** in environment files require strengthening
+- **NGINX security headers** missing (HSTS, X-Frame-Options, CSP)
+- **Container security**: Services running as root
+- **SSL certificates**: AppFlowy self-signed certs likely expired
+- **Firewall rules**: No UFW/iptables configuration
+- **Rate limiting**: Not configured in NGINX
 
-### 3. Security Hardening Requirements
-- **Critical Issues**:
-  - **Default Passwords**: Multiple weak default passwords found in environment files:
-    - `SEAFILE_ADMIN_PASSWORD=asecret`
-    - `UMAMI_DB_PASSWORD=umami` 
-    - Various database passwords need strengthening
-  - **Missing Security Headers**: NGINX configurations lack HSTS, X-Frame-Options, X-Content-Type-Options, CSP
-  - **Container Security**: Services run as root without user restrictions
-  - **SSL Certificates**: Self-signed certificates for AppFlowy-Cloud are likely expired (March 2024)
-
-### 4. Missing Security Infrastructure
-- **Firewall Configuration**: No UFW or iptables rules found
-- **Intrusion Detection**: No security monitoring or logging configurations
-- **Backup Encryption**: Database backups stored in plain text without encryption
-- **Rate Limiting**: No rate limiting configured in NGINX
-- **SSH Security**: SSH configurations not tracked in repository
+### 3. Platform Migration Considerations
+- **Seafile → Nextcloud**: Evaluate ecosystem benefits and mobile sync capabilities
+- **Media Automation**: Implement Arr suite (Prowlarr, Sonarr, Radarr, qBittorrent) for automated content management
