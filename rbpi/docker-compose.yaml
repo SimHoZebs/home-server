@@ -1,0 +1,56 @@
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: "ghcr.io/home-assistant/home-assistant:stable"
+    volumes:
+      - ./ha-config:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+  ##############################RUSTDESK##############################
+  hbbs:
+    container_name: hbbs
+    image: rustdesk/rustdesk-server:latest
+    command: hbbs
+    volumes:
+      - ./rustdesk-data:/root
+    network_mode: "host"
+
+    depends_on:
+      - hbbr
+    restart: unless-stopped
+
+  hbbr:
+    container_name: hbbr
+    image: rustdesk/rustdesk-server:latest
+    command: hbbr
+    volumes:
+      - ./rustdesk-data:/root
+    network_mode: "host"
+    restart: unless-stopped
+  ##############################OWNTRACKS##############################
+  otrecorder:
+    container_name: otrecorder
+    image: owntracks/recorder
+    ports:
+      - 8083:8083
+    environment:
+      OTR_HOST: mosquitto
+    volumes:
+      - ./owntracks/config:/config
+      - ./owntracks/store:/store
+    restart: unless-stopped
+
+  mosquitto:
+    container_name: mqtt
+    image: eclipse-mosquitto
+    ports:
+      - 1883:1883
+      - 8883:8883
+    volumes:
+      - ./mosquitto-data:/mosquitto/data
+      - ./mosquitto-logs:/mosquitto/logs
+      - ./mosquitto-conf:/mosquitto/config
+    restart: unless-stopped
