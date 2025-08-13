@@ -1,10 +1,29 @@
-cache/
-models/
-config/
+# SSL/TLS Certificates and Private Keys
+*.crt
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Environment files (each subfolder has its own .gitignore, but adding here as safety)
 .env
-.env.*
-/home-server/jellyfin/config
-/home-server/jellyfin/cache
-/mnt/hdd1/*
-/mnt/hdd1/seafile/*
-./ollama
+.env.local
+.env.*.local
+
+# Backup files
+*.bak
+*.backup
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+tmp/
+temp/

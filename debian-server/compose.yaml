@@ -1,3 +1,5 @@
+name: home-server
+
 services:
   ##############################JELLYFIN##############################
   jellyfin:
@@ -5,8 +7,8 @@ services:
     container_name: jellyfin
     network_mode: "host"
     volumes:
-      - ~/home-server/jellyfin/config:/config
-      - ~/home-server/jellyfin/cache:/cache
+      - ./jellyfin/config:/config
+      - ./jellyfin/cache:/cache
       - type: bind
         source: /mnt/hdd1/media
         target: /media
@@ -14,10 +16,9 @@ services:
         source: /mnt/hdd1/media2
         target: /media2
         read_only: true
-      # Optional - extra fonts to be used during transcoding with subtitle burn-in
       - type: bind
-        source: /path/to/fonts
-        target: /usr/local/share/fonts/custom
+        source: /mnt/hdd1/seafile/seafile-fuse
+        target: /seafile-fuse
         read_only: true
     restart: "unless-stopped"
     runtime: nvidia
@@ -164,9 +165,12 @@ services:
         target: /seafile-fuse
         bind:
           propagation: rshared
+      - ./seafile-scripts/start-seaf-fuse.sh:/usr/local/bin/start-seaf-fuse.sh:ro
+      - ./seafile-scripts/entrypoint-wrapper.sh:/usr/local/bin/entrypoint-wrapper.sh:ro
     privileged: true
     cap_add:
       - SYS_ADMIN
+    entrypoint: ["/usr/local/bin/entrypoint-wrapper.sh"]
     env_file: .env
     environment:
       - DB_HOST=db
@@ -183,6 +187,12 @@ services:
     networks:
       - seafile-net
     restart: "unless-stopped"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/api2/server-info/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   ##############################OLLAMA##############################
   ollama:
@@ -258,22 +268,10 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
     command: >
-      -thread_queue_size 512
+      -i "srt://0.0.0.0:9998?mode=listener&latency=${SRT_LATENCY:-3000}"
       -fflags +genpts+discardcorrupt
-      -flags +low_delay
-      -i "srt://0.0.0.0:9998?mode=listener&latency=${SRT_LATENCY:-3000}&rcvbuf=262144"
-      -map 0:v -map 0:a
-      -c:v copy -c:a copy
-      -f flv rtmp://a.rtmp.youtube.com/live2/${YOUTUBE_KEY}
-      -map 0:v -map 0:a
-      -c:v h264_nvenc -preset ${NVENC_PRESET:-p6} \
-                      -b:v ${TWITCH_BITRATE:-6000k} \
-                      -maxrate ${TWITCH_BITRATE:-6000k} \
-                      -bufsize ${TWITCH_BUFSIZE:-12000k} \
-                      -g ${TWITCH_GOP:-120} -keyint_min ${TWITCH_GOP:-120} \
-                      -pix_fmt yuv420p -bf 2
-      -c:a copy
-      -f flv rtmp://live.twitch.tv/app/${TWITCH_KEY}
+      -map 0:v -map 0:a -c:v h264_nvenc -preset:v ${NVENC_PRESET:-p6} -b:v ${TWITCH_BITRATE:-6000k} -bufsize:v ${TWITCH_BUFSIZE:-12000k} -g ${TWITCH_GOP:-120} -keyint_min ${TWITCH_GOP:-120} -c:a copy -f flv rtmp://ingest.global-contribute.live-video.net/app/${TWITCH_KEY}
+      -map 0:v -map 0:a -c:v copy -c:a copy -f flv rtmp://a.rtmp.youtube.com/live2/${YOUTUBE_KEY}
     volumes:
       - /tmp:/tmp
 
