@@ -2,6 +2,7 @@
 Multi-node home server infrastructure distributed across debian-server (primary) and rbpi (Raspberry Pi). Uses Docker containerization, NGINX reverse proxy, Tailscale mesh networking, and DuckDNS dynamic DNS.
 
 ## System Architecture Diagram
+
 ```mermaid
 flowchart TD
   %% Home Network
@@ -65,65 +66,48 @@ flowchart TD
   class Streamer,InternalOnly internal_only;
 ```
 
-
 ## Infrastructure Components
 - **debian-server**: Primary server; configuration present in `debian-server/` directory. NVIDIA GPU for hardware acceleration.
 - **rbpi**: Raspberry Pi; configuration present in `rbpi/` directory. Home automation and remote access services.
 
 ## Service Inventory
 
-| Service | Host Device | Public Address/Internal Port | Purpose |
-| :--- | :--- | :--- | :--- |
-| **Jellyfin** | `debian-server` | `simtyler.duckdns.org/jellyfin/` | GPU-accelerated media server |
-| **Immich** | `debian-server` | `simpics.duckdns.org` | GPU-accelerated photo/video management |
-| **Umami** | `debian-server` | `sim-analytics.duckdns.org` | Web analytics platform |
-| **Seafile** | `debian-server` | Internal/8585 | File sync with MariaDB backend |
-| **Ollama** | `debian-server` | Internal/11434| GPU-accelerated LLM inference |
-| **Streamer** | `debian-server` | Internal/9998 | GPU-accelerated SRT to RTMP relay. Configured in `compose.yaml` as a standalone service. Accepts SRT input on a configurable UDP port and relays to RTMP endpoints (YouTube, Twitch) using NVIDIA GPU acceleration. |
-| **Certbot** | `rbpi` | Internal | SSL/TLS certificate management for NGINX reverse proxy. Runs as a system service, not containerized. |
-| **Home Assistant**| `rbpi` | Internal | Home automation hub |
-| **RustDesk** | `rbpi` | (Internal Access) | Remote desktop service (hbbs/hbbr) |
-| **OwnTracks** | `rbpi` | Internal/8083| Location tracking service (otrecorder) |
-| **Mosquitto** | `rbpi` | (Internal Access) | MQTT broker for messaging (Eclipse Mosquitto) |
-| **Fail2ban** | `rbpi` (system service, planned migration to debian-server) | (Internal Access) | SSH/NGINX brute force protection (future, not containerized) |
-
-
+| Service            | Host Device     | Public Address/Internal Port     | Purpose                                               |
+| :----------------- | :-------------- | :------------------------------- | :---------------------------------------------------- |
+| **Jellyfin**       | `debian-server` | `simtyler.duckdns.org/jellyfin/` | GPU-accelerated media server                          |
+| **Immich**         | `debian-server` | `simpics.duckdns.org`            | GPU-accelerated photo/video management                |
+| **Umami**          | `debian-server` | `sim-analytics.duckdns.org`      | Web analytics platform                                |
+| **Seafile**        | `debian-server` | Internal/`8585`                  | File sync/backup                                      |
+| **Ollama**         | `debian-server` | Internal/`11434`                 | GPU-accelerated LLM inference                         |
+| **Streamer**       | `debian-server` | Internal/`9998`                  | GPU-accelerated SRT to RTMP relay to YouTube & Twitch |
+| **Certbot**        | `rbpi`          | Internal                         | SSL/TLS certificate management                        |
+| **Home Assistant** | `rbpi`          | Internal                         | Home automation                                       |
+| **RustDesk**       | `rbpi`          | Internal                         | Remote desktop                                        |
+| **OwnTracks**      | `rbpi`          | Internal/`8083`                    | Location tracking                                     |
+| **Mosquitto**      | `rbpi`          | Internal                         | MQTT broker for messaging                             |
+| **Fail2ban**       | `rbpi`          | Internal                         | SSH/NGINX brute force protection                      |
 ## Network Architecture
 - **Tailscale**: WireGuard-based mesh VPN providing secure inter-device communication
 - **DuckDNS**: Dynamic DNS service for stable domain resolution to changing home IP
 - **NGINX**: Reverse proxy with SSL termination and traffic routing
-- **Let's Encrypt & Certbot**: Automated SSL/TLS certificate management via Certbot (system service, not containerized)
-
-## Network Infrastructure
-### Tailscale Mesh Network
-WireGuard-based VPN creating secure communication between debian-server and rbpi.
-
-### NGINX and Certbot Configuration
-Multiple NGINX instances handle different routing requirements. Certbot runs as a system service on both debian-server and rbpi, providing automated SSL/TLS certificate management for NGINX reverse proxy setups.
+- **Let's Encrypt & Certbot**: Automated SSL/TLS certificate management via Certbot 
 
 ## debian-server
 
 ### Seafile
-Seafile service configured with privileged access and SYS_ADMIN capability for FUSE mounting. Enables direct file access for services like Immich without API overhead.
+Seafile service is configured with privileged access and SYS_ADMIN capability for FUSE mounting. Enables direct file access for services like Immich without API overhead.
 
 ### Ollama
-| Model | Size | Classification | Use Case |
-|-------|------|----------------|----------|
-| qwen3:1.7b | 1.4 GB | Speed | Low-latency inference |
-| qwen3:4b | 2.6 GB | General | Balanced performance |
-| gemma3:4b | 3.3 GB | Multimodal | Text and vision processing |
-| qwen3:latest | 5.2 GB | Intelligence | Complex reasoning |
-| deepseek-r1:8b | 5.2 GB | Intelligence | Complex reasoning |
-
+| Model          | Size   | Classification | Use Case                   |
+| -------------- | ------ | -------------- | -------------------------- |
+| qwen3:1.7b     | 1.4 GB | Speed          | Low-latency inference      |
+| qwen3:4b       | 2.6 GB | General        | Balanced performance       |
+| gemma3:4b      | 3.3 GB | Multimodal     | Text and vision processing |
+| qwen3:latest   | 5.2 GB | Intelligence   | Complex reasoning          |
+| deepseek-r1:8b | 5.2 GB | Intelligence   | Complex reasoning          |
 
 ### Streamer
-GPU-accelerated SRT to RTMP relay service for live streaming to multiple platforms. The Streamer service runs as a standalone container on the debian-server (host network), configured in `compose.yaml`.
-
-**Configuration:**
-- **Input**: SRT stream on configurable UDP port with low latency buffering
-- **Outputs**: Simultaneous RTMP streams to YouTube and Twitch
-- **Hardware acceleration**: NVDEC for decoding, H.264 NVENC for encoding
-- **Audio processing**: AAC encoding at 48kHz
+Expects HEVC video and AAC audio
 
 ## Setup and Maintenance Instructions
 
