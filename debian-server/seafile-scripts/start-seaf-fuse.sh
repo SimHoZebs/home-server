@@ -53,8 +53,8 @@ fi
 log "Starting seaf-fuse with mount point: $MOUNT_POINT"
 cd /opt/seafile/seafile-server-latest
 
-# Execute seaf-fuse.sh start command
-./seaf-fuse.sh start "$MOUNT_POINT" >> "$LOG_FILE" 2>&1
+# Execute seaf-fuse.sh start command with allow_other option
+./seaf-fuse.sh start -o allow_other "$MOUNT_POINT" >> "$LOG_FILE" 2>&1
 start_result=$?
 
 # Check if seaf-fuse started successfully

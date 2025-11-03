@@ -16,10 +16,7 @@ services:
         source: /mnt/hdd1/media2
         target: /media2
         read_only: true
-      - type: bind
-        source: /mnt/hdd1/seafile/seafile-fuse
-        target: /seafile-fuse
-        read_only: true
+      - /mnt/hdd1/seafile/seafile-fuse:/seafile-fuse:ro
     restart: "unless-stopped"
     runtime: nvidia
     deploy:
@@ -167,6 +164,7 @@ services:
           propagation: rshared
       - ./seafile-scripts/start-seaf-fuse.sh:/usr/local/bin/start-seaf-fuse.sh:ro
       - ./seafile-scripts/entrypoint-wrapper.sh:/usr/local/bin/entrypoint-wrapper.sh:ro
+      - ./seafile-scripts/fuse.conf:/etc/fuse.conf:ro
     privileged: true
     cap_add:
       - SYS_ADMIN
