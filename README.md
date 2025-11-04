@@ -66,10 +66,6 @@ flowchart TD
   class Streamer,InternalOnly internal_only;
 ```
 
-## Infrastructure Components
-- **Linksys E8450 AX3200 Router**: Core network device providing internet connectivity and routing. Has OpenWRT firmware configured.
-- **debian-server**: Primary server; configuration present in `debian-server/` directory. NVIDIA GPU for hardware acceleration. Connected to 5 TB external storage.
-- **rbpi**: Raspberry Pi; configuration present in `rbpi/` directory. Home automation and remote access services.
 
 ## Service Inventory
 
@@ -89,28 +85,41 @@ flowchart TD
 | **Fail2ban**       | `rbpi`          | Internal                         | SSH/NGINX brute force protection                      |
 
 ¹ Immich accessible via Cloudflare (Global Edge Network with media caching) and DuckDNS (direct access for privacy-conscious users)
-## Network Architecture
-- **Tailscale**: WireGuard-based mesh VPN providing secure inter-device communication
-- **DuckDNS**: Dynamic DNS service for stable domain resolution to changing home IP
-- **NGINX**: Reverse proxy with SSL termination and traffic routing
-- **Let's Encrypt & Certbot**: Automated SSL/TLS certificate management via Certbot 
 
-## debian-server
+## Infrastructure
 
-### Seafile
+### rbpi
+**Hardware**: Raspberry Pi 4B with 4GB RAM
+
+### debian-server
+
+**Hardware**: Intel Core i3-10100 @ 3.60GHz (4 cores, 8 threads), 16GB RAM, NVIDIA GTX 1650 Super (4GB VRAM)
+**Storage**: 467GB NVMe SSD + 5TB Seagate external HDD (mounted at /mnt/hdd1)
+
+#### Seafile
 Configured with privileged access and SYS_ADMIN capability for FUSE mounting. Custom entrypoint wrapper (`seafile-scripts/entrypoint-wrapper.sh` + `seafile-scripts/start-seaf-fuse.sh`) automatically mounts seaf-fuse at `/seafile-fuse` on container startup. Enables direct file access for services like Immich without API overhead.
 
-### Ollama
+#### Ollama
+GPU-accelerated LLM inference utilizing 4GB VRAM. Models are sized to fit within GPU memory constraints for optimal performance.
 | Model          | Size   | Classification | Use Case                   |
 | -------------- | ------ | -------------- | -------------------------- |
 | qwen3:1.7b     | 1.4 GB | Speed          | Low-latency inference      |
 | qwen3:4b       | 2.6 GB | General        | Balanced performance       |
 | gemma3:4b      | 3.3 GB | Multimodal     | Text and vision processing |
-| qwen3:latest   | 5.2 GB | Intelligence   | Complex reasoning          |
-| deepseek-r1:8b | 5.2 GB | Intelligence   | Complex reasoning          |
+| qwen3:latest   | 5.2 GB | Intelligence   | Complex reasoning (CPU fallback) |
+| deepseek-r1:8b | 5.2 GB | Intelligence   | Complex reasoning (CPU fallback) |
 
-### Streamer
-Expects HEVC video and AAC audio
+#### Streamer
+GPU-accelerated SRT to RTMP relay service for streaming to YouTube & Twitch. Expects HEVC video and AAC audio input.
+
+### Networking
+
+- **Linksys E8450 AX3200 Router**: Core network device with OpenWRT firmware providing internet connectivity and routing
+- **5-Port Gigabit Desktop Switch**: Expands wired connectivity for multiple devices with gigabit speeds
+- Each host is connected via wired Ethernet with at least 1Gbps speed
+
+### Network Access Strategy
+Every service is accessible via **local network** or **Tailscale mesh VPN** for secure internal communication. Services are made public-facing through **DuckDNS** only when Tailscale access is not feasible. **Cloudflare** is used selectively for services requiring global edge access with caching (e.g., Immich).
 
 ## Setup and Maintenance Instructions
 
