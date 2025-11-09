@@ -5,86 +5,6 @@ include:
 name: home-server
 
 services:
-  ##############################SEAFILE##############################
-  db:
-    image: mariadb:10.11
-    container_name: seafile-mysql
-    environment:
-      - MYSQL_LOG_CONSOLE=true
-      - MARIADB_AUTO_UPGRADE=1
-      - MYSQL_ROOT_PASSWD=${SEAFILE_MYSQL_ROOT_PASSWORD}
-    volumes:
-      - /mnt/hdd1/seafile/seafile-mysql/db:/var/lib/mysql # Required, specifies the path to MySQL data persistent store.
-    networks:
-      - seafile-net
-    restart: "unless-stopped"
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "mysqladmin",
-          "ping",
-          "-h",
-          "localhost",
-          "-u",
-          "root",
-          "--password=${SEAFILE_MYSQL_ROOT_PASSWORD}",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  memcached:
-    image: memcached:1.6.18
-    container_name: seafile-memcached
-    entrypoint: memcached -m 256
-    networks:
-      - seafile-net
-    restart: "unless-stopped"
-
-  seafile:
-    image: seafileltd/seafile-mc:11.0-latest
-    container_name: seafile
-    ports:
-      - "${SEAFILE_PORT:-8585}:80"
-    #     - "443:443"  # If https is enabled, cancel the comment.
-    volumes:
-      - /mnt/hdd1/seafile/seafile-data:/shared # Required, specifies the path to Seafile data persistent store.
-      - type: bind
-        source: /mnt/hdd1/seafile/seafile-fuse
-        target: /seafile-fuse
-        bind:
-          propagation: rshared
-      - ./seafile-scripts/start-seaf-fuse.sh:/usr/local/bin/start-seaf-fuse.sh:ro
-      - ./seafile-scripts/entrypoint-wrapper.sh:/usr/local/bin/entrypoint-wrapper.sh:ro
-      - ./seafile-scripts/fuse.conf:/etc/fuse.conf:ro
-    privileged: true
-    cap_add:
-      - SYS_ADMIN
-    entrypoint: ["/usr/local/bin/entrypoint-wrapper.sh"]
-    env_file: .env
-    environment:
-      - DB_HOST=db
-      - DB_USER=${SEAFILE_DB_USER:-seafile}
-      - DB_PASSWD=${SEAFILE_DB_PASSWORD:-seafile_password}
-      - DB_NAME=${SEAFILE_DB_NAME:-seafile}
-      - TIME_ZONE=${TIMEZONE:-Etc/UTC}
-      - SEAFILE_SERVER_LETSENCRYPT=${SEAFILE_HTTPS:-false}
-    depends_on:
-      db:
-        condition: service_healthy
-      memcached:
-        condition: service_started
-    networks:
-      - seafile-net
-    restart: "unless-stopped"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/api2/server-info/"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-
   ##############################OLLAMA##############################
   ollama:
     container_name: ollama
@@ -166,9 +86,5 @@ services:
     volumes:
       - /tmp:/tmp
 
-networks:
-  seafile-net:
-
 volumes:
-  model-cache-restore:
   umami-db-data:
