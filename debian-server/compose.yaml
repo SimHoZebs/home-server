@@ -3,28 +3,11 @@ include:
   - ./jellyfin/compose.yml
   - ./seafile/compose.yml
   - ./umami/compose.yml
+  - ./ollama/compose.yml
 
 name: home-server
 
 services:
-  ##############################OLLAMA##############################
-  ollama:
-    container_name: ollama
-    image: ollama/ollama:latest
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    runtime: nvidia # Important for using NVIDIA runtime
-    ports:
-      - "${OLLAMA_PORT:-11434}:11434" # Expose the API port
-    volumes:
-      - ./ollama:/root/.ollama
-    restart: "unless-stopped"
-
   ##############################STREAMER##############################
   streamer:
     container_name: streamer
@@ -50,6 +33,3 @@ services:
       -map 0:v -map 0:a -c:v copy -c:a copy -f flv rtmp://a.rtmp.youtube.com/live2/${YOUTUBE_KEY}
     volumes:
       - /tmp:/tmp
-
-volumes:
-  umami-db-data:

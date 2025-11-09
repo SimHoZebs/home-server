@@ -5,4 +5,3 @@ config/
 jellyfin/config
 jellyfin/cache
 /mnt/hdd1/**/*
-ollama/

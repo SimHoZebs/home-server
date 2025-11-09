@@ -1,0 +1,17 @@
+services:
+  ollama:
+    container_name: ollama
+    image: ollama/ollama:latest
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    runtime: nvidia # Important for using NVIDIA runtime
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434" # Expose the API port
+    volumes:
+      - .:/root/.ollama
+    restart: "unless-stopped"
