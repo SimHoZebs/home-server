@@ -2,7 +2,6 @@ cache/
 models/
 config/
 .env
-.env.*
 jellyfin/config
 jellyfin/cache
 /mnt/hdd1/**/*
