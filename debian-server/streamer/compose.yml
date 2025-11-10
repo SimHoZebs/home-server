@@ -1,0 +1,25 @@
+services:
+  streamer:
+    container_name: streamer
+    image: linuxserver/ffmpeg:latest
+    restart: always
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    ports:
+      - "9998:9998/udp"
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
+    command: >
+      -i "srt://0.0.0.0:9998?mode=listener&latency=3000"
+      -fflags +genpts+discardcorrupt
+      -map 0:v -map 0:a -c:v h264_nvenc -preset:v p6 -b:v 6000k -bufsize:v 12000k -g 120 -keyint_min 120 -c:a copy -f flv rtmp://ingest.global-contribute.live-video.net/app/${TWITCH_KEY}
+      -map 0:v -map 0:a -c:v copy -c:a copy -f flv rtmp://a.rtmp.youtube.com/live2/${YOUTUBE_KEY}
+    volumes:
+      - /tmp:/tmp

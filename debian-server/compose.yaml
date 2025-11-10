@@ -4,32 +4,6 @@ include:
   - ./seafile/compose.yml
   - ./umami/compose.yml
   - ./ollama/compose.yml
+  - ./streamer/compose.yml
 
 name: home-server
-
-services:
-  ##############################STREAMER##############################
-  streamer:
-    container_name: streamer
-    image: linuxserver/ffmpeg:latest
-    restart: always
-    runtime: nvidia
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    ports:
-      - "${SRT_PORT:-9998}:9998/udp"
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
-    command: >
-      -i "srt://0.0.0.0:9998?mode=listener&latency=${SRT_LATENCY:-3000}"
-      -fflags +genpts+discardcorrupt
-      -map 0:v -map 0:a -c:v h264_nvenc -preset:v ${NVENC_PRESET:-p6} -b:v ${TWITCH_BITRATE:-6000k} -bufsize:v ${TWITCH_BUFSIZE:-12000k} -g ${TWITCH_GOP:-120} -keyint_min ${TWITCH_GOP:-120} -c:a copy -f flv rtmp://ingest.global-contribute.live-video.net/app/${TWITCH_KEY}
-      -map 0:v -map 0:a -c:v copy -c:a copy -f flv rtmp://a.rtmp.youtube.com/live2/${YOUTUBE_KEY}
-    volumes:
-      - /tmp:/tmp
