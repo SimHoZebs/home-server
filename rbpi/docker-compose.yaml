@@ -1,3 +1,6 @@
+include:
+  - ./infisical/docker-compose.prod.yml
+
 name: docker
 
 services:
